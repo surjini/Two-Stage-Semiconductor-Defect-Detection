@@ -3,12 +3,134 @@
 ## Program DataPath - https://www.kaggle.com/code/surjini/two-stage-semiconductor-clean-and-defect-detection/edit
 
 ## Dataset Datapath - /kaggle/input/two-stage-semiconductor-defect-dataset-sem-img
+# Two-Stage Semiconductor Defect Classification
+Project Overview
 
-## Codeinstruction and run insruction
+This project proposes a Two-Stage Edge-AI framework for automated defect inspection in SEM (Scanning Electron Microscope) images used in semiconductor manufacturing.
+The system first performs binary screening (Clean vs Defective) and then applies fine-grained defect classification only on defective samples.
+This two-stage design reduces computation, latency, and power consumption, making it suitable for real-time edge deployment without cloud dependency.
+
+Dataset Description
+
+Dataset Source
+A custom-curated SEM image dataset organized specifically for a two-stage classification pipeline. The dataset is structured to reflect realistic industrial wafer inspection conditions, including grayscale textures, SEM noise, and diverse defect patterns.
+
+DATASET ORGANIZATION BY STAGE
+| Dataset         | Included Samples    | Excluded Samples |
+| --------------- | ------------------- | ---------------- |
+| Master Dataset  | All 8 classes       | None             |
+| Stage 1 Dataset | Clean + All Defects | —                |
+| Stage 2 Dataset | Defect classes only | Clean            |
+
+CLASS DESIGN
+
+| Stage                 | Classification Type        | Classes                                                |
+| --------------------- | -------------------------- | ------------------------------------------------------ |
+| Stage 1               | Binary Classification      | Clean, Defective                                       |
+| Stage 2               | Multi-Class Classification | Bridges, Cracks, Opens, Shorts, Scratches, Vias, Other |
+| Master Dataset | 8 (7 defect + 1 clean)     |                                                        |
 
 
+DATASET SPLIT:
+
+  Training: 70%
+
+  Validation: 15%
+
+  Testing: 15%
+
+Two-Stage Model Architecture
+   
+   Stage-1: Binary Classification (Clean vs Defective)
+   Lightweight CNN
+   Fast screening to reduce Stage-2 load
+
+Stage-2: Multi-Class Defect Classification
+
+   Model Used: DenseNet121
+   Framework: TensorFlow / Keras
+   Training Approach: Transfer Learning
+   
+MODEL DETAILS & BASELINE RESULTS
+
+| Parameter      | Value             |
+| -------------- | ----------------- |
+| Input Size     | 224 × 224 × 3     |
+| Model          | DenseNet121       |
+| Training Type  | Transfer Learning |
+| Model Size     | ~33 MB            |
+| Framework      | TensorFlow        |
+| No. of Classes | 8                 |
+
+TEST METRICS 
+
+Test Accuracy: 85%
+
+Validation Accuracy (best): 80%
+
+Precision (avg):  ~0.30
+
+Recall (avg): ~0.27
 
 
+## Code Structure and run insructions
+
+# CODE STRUCTURE
+
+1. Imports & Configuration
+
+TensorFlow / Keras
+
+ImageDataGenerator
+
+DenseNet121 backbone
+
+Callbacks for stability
+
+2. Data Loading
+
+Augmentation for training
+
+Only rescaling for validation & test
+
+3. Model Architecture
+
+DenseNet121 (ImageNet pretrained)
+
+Global Average Pooling
+
+Dense + Dropout classifier head
+
+4. Training Strategy
+
+Phase-1: Feature extraction (frozen backbone)
+
+Phase-2: Fine-tuning (last layers unfrozen)
+
+# RUN INSTRUCTIONS
+
+to Run (Step-by-Step)
+
+1️. Upload dataset to Kaggle
+
+2️. Verify folder structure
+
+3️. Open new Kaggle notebook
+
+4️. Paste full code above
+
+5️. Run cells top to bottom
+
+6️. Training happens in two phases automatically
+
+OUTPUTS GENERATED:
+
+| Output              | Description                    |
+| ------------------- | ------------------------------ |
+| Trained Model       | `DenseNet121` Stage-2          |
+| Validation Accuracy | ~80% (current dataset size)    |
+| Test Accuracy       | ~85%                           |
+| Ready for ONNX      | Yes                            |
 
 ## code
 ```
