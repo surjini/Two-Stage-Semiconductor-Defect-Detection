@@ -75,7 +75,7 @@ Recall (avg): ~0.27
 
 ## Code Structure and run insructions
 
-# CODE STRUCTURE
+## CODE STRUCTURE
 
 1. Imports & Configuration
 
@@ -107,7 +107,7 @@ Phase-1: Feature extraction (frozen backbone)
 
 Phase-2: Fine-tuning (last layers unfrozen)
 
-# RUN INSTRUCTIONS
+## RUN INSTRUCTIONS
 
 to Run (Step-by-Step)
 
