@@ -359,6 +359,42 @@ print(classification_report(
     zero_division=0
 ))
 
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.preprocessing import image
+
+def preprocess_image(img_path):
+    img = image.load_img(img_path, target_size=(224, 224))
+    img_array = image.img_to_array(img)
+    img_array = img_array / 255.0   # same normalization as training
+    img_array = np.expand_dims(img_array, axis=0)
+    return img_array
+
+def two_stage_predict(img_path):
+
+    img = preprocess_image(img_path)
+
+    # ----- Stage 1 Prediction -----
+    stage1_pred = stage1_model.predict(img, verbose=0)
+    
+    if stage1_pred[0][0] > 0.5:
+        print("Stage-1 Result: DEFECT detected")
+        
+        # ----- Stage 2 Prediction -----
+        stage2_pred = stage2_model.predict(img, verbose=0)
+        class_index = np.argmax(stage2_pred)
+        
+        class_names = list(train_stage2.class_indices.keys())
+        defect_type = class_names[class_index]
+        
+        print("Stage-2 Result: Defect Type =", defect_type)
+        
+    else:
+        print("Stage-1 Result: NORMAL wafer")
+
+two_stage_predict("/kaggle/input/two-stage-semiconductor-defect-dataset-sem-img/semiconductor_defect_dataset/stage2_multiclass_dataset/Test/cracks/3.jpg")
+
+
 
 
 
