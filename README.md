@@ -135,122 +135,229 @@ OUTPUTS GENERATED:
 ## code
 ```
 import os
+import numpy as np
 import tensorflow as tf
+import matplotlib.pyplot as plt
+
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.applications import DenseNet121
+from tensorflow.keras.layers import GlobalAveragePooling2D, Dense, Dropout
 from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Dense, Dropout, GlobalAveragePooling2D
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+from sklearn.utils.class_weight import compute_class_weight
 
-BASE_PATH = "/kaggle/input/two-stage-semiconductor-defect-dataset-sem-img/semiconductor_defect_dataset/stage2_multiclass_dataset"
+BASE_PATH = "/kaggle/input/two-stage-semiconductor-defect-dataset-sem-img/semiconductor_defect_dataset"
+
+STAGE1_PATH = BASE_PATH + "/stage1_binary_dataset"
+STAGE2_PATH = BASE_PATH + "/stage2_multiclass_dataset"
+
 IMG_SIZE = (224, 224)
-BATCH_SIZE = 16
-EPOCHS = 15
+BATCH_SIZE = 32
+EPOCHS_INITIAL = 15
+EPOCHS_FINE = 10
 
-train_datagen = ImageDataGenerator(
+train_gen1 = ImageDataGenerator(
     rescale=1./255,
-    rotation_range=30,
-    width_shift_range=0.2,
-    height_shift_range=0.2,
-    zoom_range=0.25,
-    shear_range=0.2,
-    horizontal_flip=True,
-    fill_mode="nearest"
+    rotation_range=20,
+    zoom_range=0.2,
+    horizontal_flip=True
+)
+
+val_gen1 = ImageDataGenerator(rescale=1./255)
+
+train_stage1 = train_gen1.flow_from_directory(
+    STAGE1_PATH + "/Train",
+    target_size=IMG_SIZE,
+    batch_size=BATCH_SIZE,
+    class_mode="binary"
+)
+
+val_stage1 = val_gen1.flow_from_directory(
+    STAGE1_PATH + "/Validation",
+    target_size=IMG_SIZE,
+    batch_size=BATCH_SIZE,
+    class_mode="binary"
 )
 
 
-train_generator = train_datagen.flow_from_directory(
-    os.path.join(BASE_PATH, "Train"),
+base_model1 = DenseNet121(
+    weights="imagenet",
+    include_top=False,
+    input_shape=(224, 224, 3)
+)
+
+base_model1.trainable = False
+
+x = base_model1.output
+x = GlobalAveragePooling2D()(x)
+x = Dense(256, activation="relu")(x)
+x = Dropout(0.5)(x)
+output1 = Dense(1, activation="sigmoid")(x)
+
+stage1_model = Model(inputs=base_model1.input, outputs=output1)
+
+stage1_model.compile(
+    optimizer="adam",
+    loss="binary_crossentropy",
+    metrics=["accuracy"]
+)
+
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import confusion_matrix, classification_report
+
+val_gen1_eval = ImageDataGenerator(rescale=1./255)
+
+val_stage1_eval = val_gen1_eval.flow_from_directory(
+    STAGE1_PATH + "/Validation",
+    target_size=IMG_SIZE,
+    batch_size=BATCH_SIZE,
+    class_mode="binary",
+    shuffle=False
+)
+
+val_stage1_eval.reset()
+
+#predictions
+y_pred_probs1 = stage1_model.predict(val_stage1_eval)
+y_pred1 = (y_pred_probs1 > 0.5).astype(int).flatten()
+y_true1 = val_stage1_eval.classes
+
+# Confusion Matrix
+cm1 = confusion_matrix(y_true1, y_pred1)
+
+plt.figure(figsize=(6,6))
+sns.heatmap(cm1, annot=True, fmt="d", cmap="Blues",
+            xticklabels=["Clean", "Defect"],
+            yticklabels=["Clean", "Defect"])
+plt.title("Stage 1 Confusion Matrix")
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.show()
+
+# Classification Report
+print("Stage 1 Classification Report:")
+print(classification_report(y_true1, y_pred1, zero_division=0))
+
+callbacks1 = [
+    EarlyStopping(patience=5, restore_best_weights=True),
+    ModelCheckpoint("stage1_best_model.keras", save_best_only=True)
+]
+
+history_stage1 = stage1_model.fit(
+    train_stage1,
+    validation_data=val_stage1,
+    epochs=EPOCHS_INITIAL,
+    callbacks=callbacks1
+)
+
+train_gen2 = ImageDataGenerator(
+    rescale=1./255,
+    rotation_range=20,
+    zoom_range=0.2,
+    horizontal_flip=True
+)
+
+val_gen2 = ImageDataGenerator(rescale=1./255)
+
+train_stage2 = train_gen2.flow_from_directory(
+    STAGE2_PATH + "/Train",
     target_size=IMG_SIZE,
     batch_size=BATCH_SIZE,
     class_mode="categorical"
 )
 
-val_generator = val_datagen.flow_from_directory(
-    os.path.join(BASE_PATH, "Validation"),
+val_stage2 = val_gen2.flow_from_directory(
+    STAGE2_PATH + "/Validation",
     target_size=IMG_SIZE,
     batch_size=BATCH_SIZE,
     class_mode="categorical"
 )
 
-test_generator = test_datagen.flow_from_directory(
-    os.path.join(BASE_PATH, "Test"),
+base_model2 = DenseNet121(
+    weights="imagenet",
+    include_top=False,
+    input_shape=(224, 224, 3)
+)
+
+base_model2.trainable = False
+
+x = base_model2.output
+x = GlobalAveragePooling2D()(x)
+x = Dense(256, activation="relu")(x)
+x = Dropout(0.5)(x)
+output2 = Dense(train_stage2.num_classes, activation="softmax")(x)
+
+stage2_model = Model(inputs=base_model2.input, outputs=output2)
+
+stage2_model.compile(
+    optimizer="adam",
+    loss="categorical_crossentropy",
+    metrics=["accuracy"]
+)
+class_weights = compute_class_weight(
+class_weight="balanced",
+    classes=np.unique(train_stage2.classes),
+    y=train_stage2.classes
+)
+
+class_weights_dict = dict(enumerate(class_weights))
+
+val_gen2_eval = ImageDataGenerator(rescale=1./255)
+
+val_stage2_eval = val_gen2_eval.flow_from_directory(
+    STAGE2_PATH + "/Validation",
     target_size=IMG_SIZE,
     batch_size=BATCH_SIZE,
     class_mode="categorical",
     shuffle=False
 )
 
-NUM_CLASSES = train_generator.num_classes
-print("Class labels:", train_generator.class_indices)
+val_stage2_eval.reset()
 
+# Predictions
+predictions2 = stage2_model.predict(val_stage2_eval)
+y_pred2 = np.argmax(predictions2, axis=1)
+y_true2 = val_stage2_eval.classes
 
-base_model = tf.keras.applications.DenseNet121(
-    input_shape=(224, 224, 3),
-    include_top=False,
-    weights="imagenet"
-)
-base_model.trainable = False  
+class_names2 = list(val_stage2_eval.class_indices.keys())
 
-model = models.Sequential([
-    base_model,
-    layers.GlobalAveragePooling2D(),
-    layers.BatchNormalization(),
-    layers.Dense(256, activation="relu"),
-    layers.Dropout(0.5),
-    layers.Dense(NUM_CLASSES, activation="softmax")
-])
+# Confusion Matrix
+cm2 = confusion_matrix(y_true2, y_pred2)
 
-x = base_model.output
-x =x = tf.keras.layers.GlobalAveragePooling2D()(x)
-x = Dense(512, activation="relu")(x)
-x = Dropout(0.5)(x)
-output = Dense(NUM_CLASSES, activation="softmax")(x)
-model = Model(inputs=base_model.input, outputs=output)
+plt.figure(figsize=(8,8))
+sns.heatmap(cm2, annot=True, fmt="d", cmap="Blues",
+            xticklabels=class_names2,
+            yticklabels=class_names2)
+plt.title("Stage 2 Confusion Matrix")
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.xticks(rotation=45)
+plt.yticks(rotation=45)
+plt.show()
 
-x = base_model.output
-x =x = tf.keras.layers.GlobalAveragePooling2D()(x)
-x = Dense(512, activation="relu")(x)
-x = Dropout(0.5)(x)
-output = Dense(NUM_CLASSES, activation="softmax")(x)
-model = Model(inputs=base_model.input, outputs=output)
+# Classification Report
+print("Stage 2 Classification Report:")
+print(classification_report(
+    y_true2,
+    y_pred2,
+ target_names=class_names2,
+    zero_division=0
+))
 
-for layer in base_model.layers:
-    layer.trainable = False
-
-model.compile(
-    optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
-    loss=tf.keras.losses.CategoricalCrossentropy(label_smoothing=0.1),
-    metrics=["accuracy"]
-)
-
-callbacks = [
-    EarlyStopping(monitor="val_loss", patience=5, restore_best_weights=True),
-    ReduceLROnPlateau(monitor="val_loss", factor=0.3, patience=3, min_lr=1e-6)
+callbacks2 = [
+    EarlyStopping(patience=5, restore_best_weights=True),
+    ModelCheckpoint("stage2_best_model.keras", save_best_only=True)
 ]
 
-history = model.fit(
-    train_generator,
-    validation_data=val_generator,
-    epochs=20,
-    callbacks=callbacks
+history_stage2 = stage2_model.fit(
+    train_stage2,
+    validation_data=val_stage2,
+    epochs=EPOCHS_INITIAL,
+    callbacks=callbacks2,
+    class_weight=class_weights_dict
 )
 
 
-for layer in base_model.layers[-40:]:
-    layer.trainable = True
-
-model.compile(
-    optimizer=Adam(learning_rate=1e-5),
-    loss="categorical_crossentropy",
-    metrics=["accuracy"]
-)
-
-history_finetune = model.fit(
-    train_generator,
-    validation_data=val_generator,
-    epochs=20,
-    callbacks=callbacks
-)
-```
 
