@@ -202,6 +202,18 @@ stage1_model.compile(
     metrics=["accuracy"]
 )
 
+callbacks1 = [
+    EarlyStopping(patience=5, restore_best_weights=True),
+    ModelCheckpoint("stage1_best_model.keras", save_best_only=True)
+]
+
+history_stage1 = stage1_model.fit(
+    train_stage1,
+    validation_data=val_stage1,
+    epochs=EPOCHS_INITIAL,
+    callbacks=callbacks1
+)
+
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -239,18 +251,6 @@ plt.show()
 # Classification Report
 print("Stage 1 Classification Report:")
 print(classification_report(y_true1, y_pred1, zero_division=0))
-
-callbacks1 = [
-    EarlyStopping(patience=5, restore_best_weights=True),
-    ModelCheckpoint("stage1_best_model.keras", save_best_only=True)
-]
-
-history_stage1 = stage1_model.fit(
-    train_stage1,
-    validation_data=val_stage1,
-    epochs=EPOCHS_INITIAL,
-    callbacks=callbacks1
-)
 
 train_gen2 = ImageDataGenerator(
     rescale=1./255,
@@ -304,6 +304,19 @@ class_weight="balanced",
 
 class_weights_dict = dict(enumerate(class_weights))
 
+callbacks2 = [
+    EarlyStopping(patience=5, restore_best_weights=True),
+    ModelCheckpoint("stage2_best_model.keras", save_best_only=True)
+]
+
+history_stage2 = stage2_model.fit(
+    train_stage2,
+    validation_data=val_stage2,
+    epochs=EPOCHS_INITIAL,
+    callbacks=callbacks2,
+    class_weight=class_weights_dict
+)
+
 val_gen2_eval = ImageDataGenerator(rescale=1./255)
 
 val_stage2_eval = val_gen2_eval.flow_from_directory(
@@ -346,18 +359,7 @@ print(classification_report(
     zero_division=0
 ))
 
-callbacks2 = [
-    EarlyStopping(patience=5, restore_best_weights=True),
-    ModelCheckpoint("stage2_best_model.keras", save_best_only=True)
-]
 
-history_stage2 = stage2_model.fit(
-    train_stage2,
-    validation_data=val_stage2,
-    epochs=EPOCHS_INITIAL,
-    callbacks=callbacks2,
-    class_weight=class_weights_dict
-)
 
 
 
