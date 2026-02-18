@@ -3,6 +3,15 @@
 ## Program DataPath - https://www.kaggle.com/code/surjini/two-stage-semiconductor-clean-and-defect-detection/edit
 
 ## Dataset Datapath - /kaggle/input/two-stage-semiconductor-defect-dataset-sem-img
+## Stage 1 Confusion matrix:
+
+<img width="508" height="547" alt="Stage_1_confusionmatrix" src="https://github.com/user-attachments/assets/c4d49a9c-e1a2-413c-a13a-6b1c310c0af1" />
+
+## Stage 2 Confusion matrix:
+
+<img width="691" height="744" alt="Stage_2_confusionmatrix" src="https://github.com/user-attachments/assets/8c861833-f984-4ed8-96ee-482cba9a367a" />
+
+
 # Two-Stage Semiconductor Defect Classification
 Project Overview
 
